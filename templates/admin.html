@@ -130,6 +130,24 @@
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
         }
 
+        input[type="url"] {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        input[type="url"]:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
         .btn {
             display: inline-flex;
             align-items: center;
@@ -427,6 +445,13 @@
                         <label for="eventContent">행사 내용 (상세 설명)</label>
                         <textarea id="eventContent" placeholder="여기에 행사 상세 설명이나 안내 멘트를 작성하세요. 고객이 접속했을 때 그대로 보여집니다." required></textarea>
                     </div>
+                    <div class="form-group">
+                        <label for="publicApiUrl">실시간 번역용 터널 API 주소 (ngrok / localtunnel)</label>
+                        <input type="url" id="publicApiUrl" placeholder="예: https://xxxx.localtunnel.me (비워두면 로컬 서버 연동)">
+                        <span style="font-size: 0.75rem; color: var(--text-secondary); display: block; margin-top: 0.4rem; line-height: 1.4;">
+                            * 외부 깃허브 Pages에 노출될 고객들이 번역을 요청할 실시간 로컬 터널의 주소입니다.
+                        </span>
+                    </div>
                     <button type="submit" class="btn" id="submitBtn">
                         행사 등록 및 QR 생성
                     </button>
@@ -540,12 +565,20 @@
         const urlText = document.getElementById('urlText');
         const copyBtn = document.getElementById('copyBtn');
         const goLink = document.getElementById('goLink');
+        const publicApiUrlInput = document.getElementById('publicApiUrl');
+
+        // Restore saved URL from localStorage
+        publicApiUrlInput.value = localStorage.getItem('public_api_url') || '';
 
         // Form Submit
         eventForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const content = eventContent.value.trim();
+            const publicApiUrl = publicApiUrlInput.value.trim();
             if (!content) return;
+
+            // Save public API URL to localStorage
+            localStorage.setItem('public_api_url', publicApiUrl);
 
             submitBtn.disabled = true;
             submitBtn.textContent = '등록 중...';
@@ -556,7 +589,7 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ content }),
+                    body: JSON.stringify({ content, public_api_url: publicApiUrl }),
                 });
 
                 if (!response.ok) {
@@ -566,8 +599,7 @@
                 const data = await response.json();
                 
                 // Show QR code
-                const domain = window.location.origin;
-                const eventUrl = `${domain}/event/${data.uuid}`;
+                const eventUrl = data.url;
                 const qrUrl = `/event/${data.uuid}/qr`;
 
                 qrPlaceholder.style.display = 'none';
