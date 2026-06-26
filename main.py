@@ -18,7 +18,7 @@ from database import engine, get_db
 # Create DB tables
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="행사 관리 API (GitHub Pages + 실시간 번역)")
+app = FastAPI(title="행사 관리 API (GitHub Pages + 로컬 Ollama 번역)")
 
 # Enable CORS for external access (e.g. GitHub Pages client fetching backend)
 app.add_middleware(
@@ -47,29 +47,43 @@ class TranslateRequest(BaseModel):
     text: str
     target_lang: str
 
-# Helper to call Gemini translation API using urllib (No external dependencies)
-def translate_text_with_gemini(text: str, target_lang: str) -> str:
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("Warning: GEMINI_API_KEY environment variable is not set. Returning original text.")
-        return text
+# Helper to detect best installed Ollama model
+def get_best_ollama_model() -> str:
+    try:
+        # Request tags from local Ollama service
+        with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=3) as response:
+            res_data = json.loads(response.read().decode("utf-8"))
+            models = [m["name"] for m in res_data.get("models", [])]
+            if not models:
+                return "llama3.2:latest"  # Fallback if empty list
+            # Priority preference matching
+            priority_models = ["llama3.1:8b", "llama3.2:latest", "gemma4:e4b"]
+            for pm in priority_models:
+                if pm in models:
+                    return pm
+            # If no priority matching, return first available model
+            return models[0]
+    except Exception as e:
+        print(f"Failed to query Ollama tags: {e}. Fallback to llama3.2:latest")
+        return "llama3.2:latest"
+
+# Helper to call local Ollama translation service
+def translate_text_with_ollama(text: str, target_lang: str) -> str:
+    model_name = get_best_ollama_model()
+    print(f"Running translation using Ollama model: {model_name} for target lang: {target_lang}")
+    url = "http://localhost:11434/api/generate"
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-    
-    # Build prompt tailored for precise UI translation
     prompt = (
         f"You are a professional translator. Translate the following text into the language corresponding to language code '{target_lang}'. "
-        "Keep the original tone, line breaks, and meaning. Do NOT add any side explanations, notes, metadata, markdown backticks, or quotes. "
+        "Keep the original tone, line breaks, and meaning. Do NOT add any notes, side explanations, quotes, or markdown backticks. "
         "Just output the clean translated text itself:\n\n"
         f"{text}"
     )
     
     payload = {
-        "contents": [{
-            "parts": [{
-                "text": prompt
-            }]
-        }]
+        "model": model_name,
+        "prompt": prompt,
+        "stream": False
     }
     
     data = json.dumps(payload).encode("utf-8")
@@ -81,13 +95,14 @@ def translate_text_with_gemini(text: str, target_lang: str) -> str:
     )
     
     try:
-        with urllib.request.urlopen(req, timeout=10) as response:
+        # Local model inference may take longer, timeout is set to 30 seconds
+        with urllib.request.urlopen(req, timeout=30) as response:
             res_data = json.loads(response.read().decode("utf-8"))
-            translated = res_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+            translated = res_data["response"].strip()
             return translated
     except Exception as e:
-        print(f"Gemini API Translation Error: {e}")
-        return text
+        print(f"Ollama API Translation Error: {e}")
+        return text  # Graceful fallback to original text if error occurs
 
 # GitHub push background task
 def push_to_github(filepath: str):
@@ -152,13 +167,13 @@ def list_events(db: Session = Depends(get_db)):
         "url": f"{GITHUB_PAGES_BASE_URL}/events/{e.uuid}.html"
     } for e in events]
 
-# Realtime Translation Route
+# Realtime Translation Route (Using local Ollama)
 @app.post("/api/translate")
 def translate_content(req: TranslateRequest):
     if not req.text.strip():
         return {"translated_text": ""}
     
-    translated = translate_text_with_gemini(req.text, req.target_lang)
+    translated = translate_text_with_ollama(req.text, req.target_lang)
     return {"translated_text": translated}
 
 @app.get("/", response_class=HTMLResponse)
