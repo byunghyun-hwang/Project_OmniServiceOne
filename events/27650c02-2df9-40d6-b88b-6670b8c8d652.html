@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>행사 안내 - Event Details</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        title: ['Outfit', 'sans-serif'],
+                        body: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass {
+            background: rgba(22, 30, 49, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .loading-pulse {
+            animation: pulse-slow 1.5s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-[#0b0f19] text-slate-100 font-body min-h-screen flex items-center justify-center p-4 md:p-8 relative overflow-x-hidden">
+
+    <!-- Gradient Background Orbs -->
+    <div class="absolute top-0 right-0 w-[300px] h-[300px] bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+    <div class="event-card max-w-lg w-full glass rounded-3xl overflow-hidden shadow-2xl relative z-10 opacity-0 translate-y-8 transition-all duration-700 ease-out" id="cardContainer">
+        <!-- Header -->
+        <div class="bg-gradient-to-br from-emerald-500/20 to-blue-500/10 p-8 text-center border-b border-white/5 relative">
+            <span class="inline-block bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase mb-3 shadow-inner" id="eventBadge">
+                Official Event
+            </span>
+            <h1 class="font-title text-2xl md:text-3xl font-extrabold text-white tracking-tight" id="mainTitle">행사 안내</h1>
+            
+            <!-- Language Alert Badge (Hidden by default, shown when translation occurs) -->
+            <div id="translateBadge" class="hidden mt-4 justify-center items-center gap-2">
+                <span class="text-xs text-slate-400 bg-white/5 px-2.5 py-1 rounded-md border border-white/10 flex items-center gap-1.5">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8h11M4 12h12M11 4v16"/></svg>
+                    Translated to <strong id="targetLanguage" class="text-emerald-400 font-medium">EN</strong>
+                </span>
+                <button onclick="showOriginal()" class="text-xs text-blue-400 hover:text-blue-300 underline font-medium transition cursor-pointer">
+                    원문 보기 (Show Original)
+                </button>
+            </div>
+        </div>
+        
+        <!-- Content Body -->
+        <div class="p-8">
+            <!-- Loading Skeleton Overlay (Shown when translating) -->
+            <div id="loadingOverlay" class="hidden space-y-4 loading-pulse my-6">
+                <div class="h-4 bg-slate-800 rounded w-3/4"></div>
+                <div class="h-4 bg-slate-800 rounded"></div>
+                <div class="h-4 bg-slate-800 rounded w-5/6"></div>
+                <div class="h-4 bg-slate-800 rounded w-2/3"></div>
+            </div>
+
+            <!-- Actual Event Content Text Box -->
+            <div id="contentBox" class="bg-slate-950/40 border border-white/5 rounded-2xl p-6 text-[1.05rem] text-slate-200 leading-relaxed whitespace-pre-wrap break-words min-h-[140px] shadow-inner transition-opacity duration-300">
+                <span id="eventContent">Ollama 로컬 모델 번역 테스트입니다! 이 문장이 영어로 번역되어야 합니다.</span>
+            </div>
+            
+            <!-- Hidden original text store for restoring -->
+            <span id="originalContentStore" class="hidden">Ollama 로컬 모델 번역 테스트입니다! 이 문장이 영어로 번역되어야 합니다.</span>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex flex-col items-center gap-3 border-t border-white/5 py-6 px-8 bg-slate-950/20 text-xs text-slate-400">
+            <div class="flex items-center gap-1.5 font-medium text-slate-300">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
+                <span>등록일: <strong id="formatted-date" class="text-slate-200 font-semibold"></strong></span>
+            </div>
+            <div class="font-title font-bold tracking-widest text-slate-500 uppercase text-[0.8rem] mt-1">Event Hub</div>
+        </div>
+    </div>
+
+    <script>
+        // Trigger reveal animation on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const card = document.getElementById('cardContainer');
+            card.classList.remove('opacity-0', 'translate-y-8');
+            card.classList.add('opacity-100', 'translate-y-0');
+        });
+
+        // Format Date to User Local time nicely
+        const utcDateStr = "2026-06-26 05:37:34";
+        if (utcDateStr) {
+            try {
+                const parts = utcDateStr.split(/[- :]/);
+                const utcDate = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], parts[3], parts[4], parts[5]));
+                const options = { 
+                    year: 'numeric', month: 'long', day: 'numeric', 
+                    hour: '2-digit', minute: '2-digit', hour12: false
+                };
+                document.getElementById('formatted-date').textContent = utcDate.toLocaleDateString(navigator.language || 'ko-KR', options);
+            } catch (e) {
+                document.getElementById('formatted-date').textContent = utcDateStr;
+            }
+        }
+
+        // --- Translation Mechanism (Tailwind + API Integration) ---
+        const eventContent = document.getElementById('eventContent');
+        const originalContentStore = document.getElementById('originalContentStore');
+        const translateBadge = document.getElementById('translateBadge');
+        const targetLanguageBadge = document.getElementById('targetLanguage');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const contentBox = document.getElementById('contentBox');
+
+        // Dynamic backend public URL injected via Jinja. Fallback to current window origin if local.
+        const baseApiUrl = "https://beige-showers-begin.loca.lt" || window.location.origin;
+
+        // Supported Language Mapping for human readable badge
+        const langMap = {
+            'en': 'English',
+            'ja': '日本語 (Japanese)',
+            'zh': '中文 (Chinese)',
+            'es': 'Español (Spanish)',
+            'fr': 'Français (French)',
+            'de': 'Deutsch (German)',
+            'vi': 'Tiếng Việt (Vietnamese)',
+            'th': 'ไทย (Thai)'
+        };
+
+        // Detect user agent browser language (e.g., 'en-US' -> 'en')
+        const browserLang = (navigator.language || navigator.userLanguage || 'ko-KR').toLowerCase();
+        const baseLangCode = browserLang.split('-')[0];
+
+        // Perform translation only if client browser is NOT set to Korean
+        if (!browserLang.startsWith('ko')) {
+            requestTranslation();
+        }
+
+        async function requestTranslation() {
+            const originalText = originalContentStore.textContent.trim();
+            if (!originalText) return;
+
+            // Transition: Hide text and show loading skeleton
+            contentBox.classList.add('opacity-0');
+            loadingOverlay.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`${baseApiUrl}/api/translate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Bypass-Tunnel-Reminder': 'true' // Bypasses proxy reminder warnings
+                    },
+                    body: JSON.stringify({
+                        text: originalText,
+                        target_lang: browserLang // Send exact code (e.g. 'en-US' or 'ja')
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('API server response failed');
+                }
+
+                const data = await response.json();
+                if (data.translated_text) {
+                    // Update content
+                    eventContent.textContent = data.translated_text;
+                    
+                    // Style translation badge
+                    const readableLangName = langMap[baseLangCode] || browserLang.toUpperCase();
+                    targetLanguageBadge.textContent = readableLangName;
+                    translateBadge.classList.remove('hidden');
+                    translateBadge.classList.add('flex');
+                    
+                    // Update badge text if language is detected
+                    document.getElementById('eventBadge').textContent = 'Translated Event';
+                }
+            } catch (err) {
+                console.error('Translation network request failed. Displaying fallback original text.', err);
+            } finally {
+                // Return visibility
+                loadingOverlay.classList.add('hidden');
+                contentBox.classList.remove('opacity-0');
+            }
+        }
+
+        function showOriginal() {
+            eventContent.textContent = originalContentStore.textContent;
+            translateBadge.classList.add('hidden');
+            translateBadge.classList.remove('flex');
+            document.getElementById('eventBadge').textContent = 'Official Event';
+        }
+    </script>
+</body>
+</html>
