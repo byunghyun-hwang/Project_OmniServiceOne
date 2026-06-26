@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>행사 관리 시스템 - 어드민</title>
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --success-color: #10b981;
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        @media (max-width: 900px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 2rem;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 0.75rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 150px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            font-size: 1rem;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s ease;
+        }
+
+        textarea:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--accent-color);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .qr-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 250px;
+            border: 2px dashed rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 1rem;
+        }
+
+        .qr-result {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .qr-image-wrapper {
+            background: #fff;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            display: inline-block;
+        }
+
+        .qr-image-wrapper img {
+            display: block;
+            max-width: 100%;
+            height: auto;
+        }
+
+        .url-box {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            padding: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .url-text {
+            flex: 1;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--success-color);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 0 0.5rem;
+            text-align: left;
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--card-border);
+            color: var(--text-primary);
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* List Styling */
+        .list-section {
+            margin-top: 2rem;
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid var(--card-border);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            background: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+
+        th, td {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        th {
+            background-color: rgba(15, 23, 42, 0.5);
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        td.content-cell {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .action-links {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-color);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            padding: 0.35rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .action-btn:hover {
+            background: var(--accent-color);
+            color: #fff;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+
+        /* Modal styling */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            padding: 2.5rem;
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            animation: modalFadeIn 0.3s ease;
+        }
+
+        @keyframes modalFadeIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1.2rem;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .modal-body {
+            margin-top: 1.5rem;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            display: none;
+            animation: slideUp 0.3s ease, fadeOut 0.3s ease 2.7s forwards;
+            z-index: 1100;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>행사 관리 시스템</h1>
+            <p>행사를 간편하게 등록하고 고객 접속을 위한 QR 코드를 발급받으세요.</p>
+        </header>
+
+        <div class="grid-layout">
+            <!-- Left Side: Registration Form -->
+            <div class="card">
+                <div class="card-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    새로운 행사 등록
+                </div>
+                <form id="eventForm">
+                    <div class="form-group">
+                        <label for="eventContent">행사 내용 (상세 설명)</label>
+                        <textarea id="eventContent" placeholder="여기에 행사 상세 설명이나 안내 멘트를 작성하세요. 고객이 접속했을 때 그대로 보여집니다." required></textarea>
+                    </div>
+                    <button type="submit" class="btn" id="submitBtn">
+                        행사 등록 및 QR 생성
+                    </button>
+                </form>
+            </div>
+
+            <!-- Right Side: Real-time QR Result -->
+            <div class="card" style="display: flex; flex-direction: column;">
+                <div class="card-title">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/><rect x="14" y="14" width="3" height="3"/></svg>
+                    생성된 QR 코드
+                </div>
+                
+                <div class="qr-placeholder" id="qrPlaceholder">
+                    <p>왼쪽에서 행사를 등록하면<br>여기에 QR 코드가 생성됩니다.</p>
+                </div>
+
+                <div class="qr-result" id="qrResult">
+                    <div class="qr-image-wrapper">
+                        <img id="qrImage" src="" alt="Event QR Code">
+                    </div>
+                    <div class="url-box">
+                        <span class="url-text" id="urlText"></span>
+                        <button type="button" class="copy-btn" id="copyBtn">복사</button>
+                    </div>
+                    <a href="" id="goLink" target="_blank" class="action-btn" style="width: 100%; justify-content: center; padding: 0.75rem;">
+                        고객 페이지 직접 가기
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lower Part: Event List -->
+        <div class="card list-section">
+            <div class="card-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                등록된 행사 목록
+            </div>
+            
+            <div class="table-container">
+                <table id="eventTable">
+                    <thead>
+                        <tr>
+                            <th>등록일시</th>
+                            <th>행사 내용</th>
+                            <th>고유 UUID</th>
+                            <th>액션</th>
+                        </tr>
+                    </thead>
+                    <tbody id="eventListBody">
+                        {% if events %}
+                            {% for event in events %}
+                            <tr id="row-{{ event.uuid }}">
+                                <td style="color: var(--text-secondary); font-size: 0.9rem; white-space: nowrap;">{{ event.created_at }}</td>
+                                <td class="content-cell" title="{{ event.content }}">{{ event.content }}</td>
+                                <td style="font-family: monospace; font-size: 0.85rem;">{{ event.uuid }}</td>
+                                <td>
+                                    <div class="action-links">
+                                        <button class="action-btn" onclick="showQR('{{ event.uuid }}', '{{ event.url }}')">
+                                            QR 코드
+                                        </button>
+                                        <a href="{{ event.url }}" target="_blank" class="action-btn" style="background: rgba(16, 185, 129, 0.1); color: var(--success-color); border-color: rgba(16, 185, 129, 0.2);">
+                                            접속
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr id="emptyRow">
+                                <td colspan="4" class="empty-state">등록된 행사가 없습니다. 첫 행사를 생성해 보세요!</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Code Popup Modal -->
+    <div class="modal" id="qrModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <div class="modal-title" style="background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">행사 QR 코드</div>
+            <div class="modal-body">
+                <div class="qr-image-wrapper" style="margin-bottom: 1.5rem;">
+                    <img id="modalQRImage" src="" alt="Modal Event QR Code" style="width: 200px; height: 200px;">
+                </div>
+                <div class="url-box">
+                    <span class="url-text" id="modalUrlText"></span>
+                    <button type="button" class="copy-btn" id="modalCopyBtn">복사</button>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 1rem;">
+                    <a href="" id="modalGoLink" target="_blank" class="action-btn" style="flex: 1; justify-content: center; padding: 0.6rem;">접속 테스트</a>
+                    <button class="btn btn-secondary" onclick="closeModal()" style="flex: 1; padding: 0.6rem;">닫기</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">주소가 복사되었습니다!</div>
+
+    <script>
+        const eventForm = document.getElementById('eventForm');
+        const eventContent = document.getElementById('eventContent');
+        const submitBtn = document.getElementById('submitBtn');
+        const qrPlaceholder = document.getElementById('qrPlaceholder');
+        const qrResult = document.getElementById('qrResult');
+        const qrImage = document.getElementById('qrImage');
+        const urlText = document.getElementById('urlText');
+        const copyBtn = document.getElementById('copyBtn');
+        const goLink = document.getElementById('goLink');
+
+        // Form Submit
+        eventForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const content = eventContent.value.trim();
+            if (!content) return;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = '등록 중...';
+
+            try {
+                const response = await fetch('/api/events', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ content }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('서버 응답 오류');
+                }
+
+                const data = await response.json();
+                
+                // Show QR code
+                const domain = window.location.origin;
+                const eventUrl = `${domain}/event/${data.uuid}`;
+                const qrUrl = `/event/${data.uuid}/qr`;
+
+                qrPlaceholder.style.display = 'none';
+                qrResult.style.display = 'flex';
+                qrImage.src = qrUrl;
+                urlText.textContent = eventUrl;
+                goLink.href = eventUrl;
+
+                // Clear input
+                eventContent.value = '';
+
+                // Toast Notice
+                showToastMessage('행사가 등록되고 QR 코드가 발급되었습니다!');
+
+                // Update List dynamic
+                addNewRowToList(data.uuid, data.content, data.created_at, eventUrl);
+
+            } catch (err) {
+                console.error(err);
+                alert('행사 등록에 실패했습니다. 다시 시도해 주세요.');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '행사 등록 및 QR 생성';
+            }
+        });
+
+        // Copy button action
+        copyBtn.addEventListener('click', () => {
+            copyToClipboard(urlText.textContent);
+        });
+
+        document.getElementById('modalCopyBtn').addEventListener('click', () => {
+            copyToClipboard(document.getElementById('modalUrlText').textContent);
+        });
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToastMessage('URL 주소가 복사되었습니다!');
+            }).catch(err => {
+                console.error('클립보드 복사 실패:', err);
+            });
+        }
+
+        function showToastMessage(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.style.display = 'block';
+            
+            // Trigger animation repaint
+            toast.style.animation = 'none';
+            toast.offsetHeight; // trigger reflow
+            toast.style.animation = null;
+
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        // Add dynamic row to database list table
+        function addNewRowToList(uuid, content, createdAt, url) {
+            const tbody = document.getElementById('eventListBody');
+            const emptyRow = document.getElementById('emptyRow');
+            if (emptyRow) {
+                emptyRow.remove();
+            }
+
+            const tr = document.createElement('tr');
+            tr.id = `row-${uuid}`;
+            tr.innerHTML = `
+                <td style="color: var(--text-secondary); font-size: 0.9rem; white-space: nowrap;">${createdAt}</td>
+                <td class="content-cell" title="${content}">${content}</td>
+                <td style="font-family: monospace; font-size: 0.85rem;">${uuid}</td>
+                <td>
+                    <div class="action-links">
+                        <button class="action-btn" onclick="showQR('${uuid}', '${url}')">
+                            QR 코드
+                        </button>
+                        <a href="${url}" target="_blank" class="action-btn" style="background: rgba(16, 185, 129, 0.1); color: var(--success-color); border-color: rgba(16, 185, 129, 0.2);">
+                            접속
+                        </a>
+                    </div>
+                </td>
+            `;
+            tbody.insertBefore(tr, tbody.firstChild);
+        }
+
+        // Modal operations
+        const modal = document.getElementById('qrModal');
+        const modalQRImage = document.getElementById('modalQRImage');
+        const modalUrlText = document.getElementById('modalUrlText');
+        const modalGoLink = document.getElementById('modalGoLink');
+
+        function showQR(uuid, url) {
+            modalQRImage.src = `/event/${uuid}/qr`;
+            modalUrlText.textContent = url;
+            modalGoLink.href = url;
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+
+        // Close modal on click background
+        window.onclick = function(event) {
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>
