@@ -52,7 +52,7 @@
             </span>
             <h1 class="font-title text-2xl md:text-3xl font-extrabold text-white tracking-tight" id="mainTitle">행사 안내</h1>
             
-            <!-- Language Alert Badge (Hidden by default, shown when translation occurs) -->
+            <!-- Language Alert Badge -->
             <div id="translateBadge" class="hidden mt-4 justify-center items-center gap-2">
                 <span class="text-xs text-slate-400 bg-white/5 px-2.5 py-1 rounded-md border border-white/10 flex items-center gap-1.5">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8h11M4 12h12M11 4v16"/></svg>
@@ -81,6 +81,34 @@
             
             <!-- Hidden original text store for restoring -->
             <span id="originalContentStore" class="hidden">{{ event.content }}</span>
+
+            <!-- Premium Custom Audio Player (Initially hidden, shown when translation containing audio is loaded) -->
+            <div id="audioPlayerContainer" class="hidden mt-6 bg-slate-900/60 border border-white/5 rounded-2xl p-4 items-center gap-4 transition-all duration-300">
+                <button id="playBtn" class="w-12 h-12 flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-full focus:outline-none transition cursor-pointer shadow-lg hover:scale-105 active:scale-95 duration-200">
+                    <!-- Play Icon -->
+                    <svg id="playIcon" class="w-5 h-5 fill-current ml-0.5 text-slate-900" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    <!-- Pause Icon (hidden by default) -->
+                    <svg id="pauseIcon" class="w-5 h-5 fill-current hidden text-slate-900" viewBox="0 0 24 24">
+                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                    </svg>
+                </button>
+                
+                <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-center text-xs text-slate-400 mb-1.5 font-medium">
+                        <span class="flex items-center gap-1">
+                            <svg class="text-emerald-400 animate-bounce" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+                            Audio Reader (OpenAI TTS)
+                        </span>
+                        <span id="audioTime" class="tabular-nums">0:00 / 0:00</span>
+                    </div>
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-slate-800 hover:bg-slate-700/80 rounded-full h-1.5 cursor-pointer relative" id="progressContainer">
+                        <div id="progressBar" class="bg-emerald-400 h-1.5 rounded-full w-0 transition-all duration-75"></div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Footer -->
@@ -117,13 +145,25 @@
             }
         }
 
-        // --- Translation Mechanism (Tailwind + API Integration) ---
+        // --- Translation & TTS Integration ---
         const eventContent = document.getElementById('eventContent');
         const originalContentStore = document.getElementById('originalContentStore');
         const translateBadge = document.getElementById('translateBadge');
         const targetLanguageBadge = document.getElementById('targetLanguage');
         const loadingOverlay = document.getElementById('loadingOverlay');
         const contentBox = document.getElementById('contentBox');
+
+        // Audio Player DOM Elements
+        const playerContainer = document.getElementById('audioPlayerContainer');
+        const playBtn = document.getElementById('playBtn');
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const audioTime = document.getElementById('audioTime');
+        const progressBar = document.getElementById('progressBar');
+        const progressContainer = document.getElementById('progressContainer');
+
+        let audio = null;
+        let isPlaying = false;
 
         // Dynamic backend public URL injected via Jinja. Fallback to current window origin if local.
         const baseApiUrl = "{{ public_api_url }}" || window.location.origin;
@@ -146,28 +186,25 @@
 
         // Perform translation only if client browser is NOT set to Korean
         if (!browserLang.startsWith('ko')) {
-            requestTranslation();
+            requestTranslationAndTTS();
         }
 
-        async function requestTranslation() {
+        async function requestTranslationAndTTS() {
             const originalText = originalContentStore.textContent.trim();
-            if (!originalText) return;
+            const eventUuid = "{{ event.uuid }}";
+            if (!originalText || !eventUuid) return;
 
             // Transition: Hide text and show loading skeleton
             contentBox.classList.add('opacity-0');
             loadingOverlay.classList.remove('hidden');
 
             try {
-                const response = await fetch(`${baseApiUrl}/api/translate`, {
-                    method: 'POST',
+                // GET /api/event/{uuid}?lang={lang} - 실시간 번역 + TTS 오디오 생성 API 호출
+                const response = await fetch(`${baseApiUrl}/api/event/${eventUuid}?lang=${browserLang}`, {
+                    method: 'GET',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Bypass-Tunnel-Reminder': 'true' // Bypasses proxy reminder warnings
-                    },
-                    body: JSON.stringify({
-                        text: originalText,
-                        target_lang: browserLang // Send exact code (e.g. 'en-US' or 'ja')
-                    })
+                        'Bypass-Tunnel-Reminder': 'true' // Bypasses localtunnel warning pages
+                    }
                 });
 
                 if (!response.ok) {
@@ -176,7 +213,7 @@
 
                 const data = await response.json();
                 if (data.translated_text) {
-                    // Update content
+                    // Update translated text in box
                     eventContent.textContent = data.translated_text;
                     
                     // Style translation badge
@@ -184,12 +221,15 @@
                     targetLanguageBadge.textContent = readableLangName;
                     translateBadge.classList.remove('hidden');
                     translateBadge.classList.add('flex');
-                    
-                    // Update badge text if language is detected
                     document.getElementById('eventBadge').textContent = 'Translated Event';
                 }
+
+                if (data.audio_url) {
+                    // Initialize and bind custom play mechanics
+                    setupAudioPlayer(data.audio_url);
+                }
             } catch (err) {
-                console.error('Translation network request failed. Displaying fallback original text.', err);
+                console.error('Translation or TTS call failed. Fallback to original text.', err);
             } finally {
                 // Return visibility
                 loadingOverlay.classList.add('hidden');
@@ -197,7 +237,79 @@
             }
         }
 
+        function setupAudioPlayer(audioUrl) {
+            audio = new Audio(audioUrl);
+            
+            // Show player card
+            playerContainer.classList.remove('hidden');
+            playerContainer.classList.add('flex');
+
+            playBtn.onclick = () => {
+                if (isPlaying) {
+                    audio.pause();
+                } else {
+                    audio.play();
+                }
+            };
+
+            audio.addEventListener('play', () => {
+                isPlaying = true;
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
+            });
+
+            audio.addEventListener('pause', () => {
+                isPlaying = false;
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+            });
+
+            audio.addEventListener('timeupdate', () => {
+                const cur = audio.currentTime;
+                const dur = audio.duration || 0;
+                
+                // Update Progress percentage
+                const percent = dur > 0 ? (cur / dur) * 100 : 0;
+                progressBar.style.width = `${percent}%`;
+                
+                // Format display
+                audioTime.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+            });
+
+            audio.addEventListener('ended', () => {
+                isPlaying = false;
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+                progressBar.style.width = '0%';
+            });
+
+            // Seek functionality by clicking on progress bar
+            progressContainer.onclick = (e) => {
+                const width = progressContainer.clientWidth;
+                const clickX = e.offsetX;
+                const duration = audio.duration;
+                if (duration) {
+                    audio.currentTime = (clickX / width) * duration;
+                }
+            };
+        }
+
+        function formatTime(secs) {
+            const m = Math.floor(secs / 60);
+            const s = Math.floor(secs % 60);
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
         function showOriginal() {
+            // Stop and hide audio play mechanics
+            if (audio) {
+                audio.pause();
+                audio.currentTime = 0;
+            }
+            playerContainer.classList.add('hidden');
+            playerContainer.classList.remove('flex');
+
+            // Restore text elements
             eventContent.textContent = originalContentStore.textContent;
             translateBadge.classList.add('hidden');
             translateBadge.classList.remove('flex');
