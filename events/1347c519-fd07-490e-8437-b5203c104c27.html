@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>행사 안내 - Event Details</title>
+    <!-- Google Fonts Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(22, 30, 49, 0.75);
+            --card-border: rgba(255, 255, 255, 0.07);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-color: #10b981; /* Success Mint Green */
+            --font-title: 'Outfit', sans-serif;
+            --font-body: 'Inter', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.12) 0px, transparent 40%),
+                radial-gradient(at 0% 100%, rgba(59, 130, 246, 0.08) 0px, transparent 40%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .event-card {
+            max-width: 500px;
+            width: 100%;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 24px;
+            overflow: hidden;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+            animation: cardReveal 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes cardReveal {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
+            padding: 2.5rem 2rem;
+            text-align: center;
+            border-bottom: 1px solid var(--card-border);
+            position: relative;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-color);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 0.25rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+        }
+
+        .card-header h1 {
+            font-family: var(--font-title);
+            font-size: 1.8rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            color: #fff;
+        }
+
+        .card-body {
+            padding: 2.5rem 2rem;
+        }
+
+        .content-box {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            border-radius: 16px;
+            padding: 1.5rem;
+            font-size: 1.05rem;
+            color: #e2e8f0;
+            white-space: pre-wrap; /* Preserve line breaks */
+            word-break: break-word;
+            margin-bottom: 2rem;
+            min-height: 120px;
+        }
+
+        .card-footer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.75rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 1.5rem 2rem;
+            background: rgba(15, 23, 42, 0.2);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-row svg {
+            color: var(--accent-color);
+        }
+
+        .logo-footer {
+            margin-top: 0.5rem;
+            opacity: 0.4;
+            font-family: var(--font-title);
+            font-weight: 700;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #f8fafc 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="event-card">
+        <div class="card-header">
+            <span class="badge">Official Event</span>
+            <h1>행사 안내</h1>
+        </div>
+        
+        <div class="card-body">
+            <div class="content-box">GitHub Pages Deployment Test: This event detail card is live on the internet via GitHub!</div>
+        </div>
+
+        <div class="card-footer">
+            <div class="info-row">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
+                <span>행사 등록일: <strong id="formatted-date"></strong></span>
+            </div>
+            <div class="logo-footer">Event Hub</div>
+        </div>
+    </div>
+
+    <script>
+        // Format UTC date to user local time nicely
+        const utcDateStr = "2026-06-26 03:49:40"; // format: YYYY-MM-DD HH:MM:SS
+        if (utcDateStr) {
+            try {
+                // Since sqlite datetime doesn't explicitly store timezone, we treat it as UTC and convert to local browser time
+                // Let's parse manually as UTC to avoid browser discrepancy
+                const parts = utcDateStr.split(/[- :]/);
+                // parts: [YYYY, MM, DD, HH, MM, SS] (months are 0-indexed in Date constructor)
+                // Note: SQL datetime returns without ms, parts[1] - 1 is month
+                const utcDate = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], parts[3], parts[4], parts[5]));
+                
+                const options = { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit',
+                    hour12: false
+                };
+                document.getElementById('formatted-date').textContent = utcDate.toLocaleDateString('ko-KR', options);
+            } catch (e) {
+                document.getElementById('formatted-date').textContent = utcDateStr;
+            }
+        }
+    </script>
+</body>
+</html>
