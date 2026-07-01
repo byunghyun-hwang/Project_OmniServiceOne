@@ -65,7 +65,7 @@
 
         .grid-layout {
             display: grid;
-            grid-template-columns: 1.2fr 0.8fr;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
             gap: 2rem;
             margin-bottom: 3rem;
         }
@@ -216,6 +216,10 @@
             margin-bottom: 1.5rem;
             box-shadow: 0 10px 25px rgba(0,0,0,0.4);
             display: inline-block;
+            max-width: 350px;
+            margin-left: auto;
+            margin-right: auto;
+            width: 100%;
         }
 
         .qr-image-wrapper img {
@@ -361,7 +365,7 @@
             border: 1px solid rgba(255, 255, 255, 0.15);
             border-radius: 20px;
             padding: 2.5rem;
-            max-width: 450px;
+            max-width: 600px;
             width: 90%;
             text-align: center;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -537,8 +541,8 @@
             <button class="modal-close" onclick="closeModal()">&times;</button>
             <div class="modal-title" style="background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">행사 QR 코드</div>
             <div class="modal-body">
-                <div class="qr-image-wrapper" style="margin-bottom: 1.5rem;">
-                    <img id="modalQRImage" src="" alt="Modal Event QR Code" style="width: 200px; height: 200px;">
+                <div class="qr-image-wrapper" style="margin-bottom: 1.5rem; max-width: 450px;">
+                    <img id="modalQRImage" src="" alt="Modal Event QR Code" style="width: 400px; height: 400px;">
                 </div>
                 <div class="url-box">
                     <span class="url-text" id="modalUrlText"></span>
@@ -573,7 +577,13 @@
         // Form Submit
         eventForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const content = eventContent.value.trim();
+            // 입력 텍스트에서 ZWNJ 등 불가시 유니코드 제거 후 DB 저장
+            // 리치텍스트 붙여넣기 시 삽입되는 U+200B~U+200F, U+202A~U+202F, U+FEFF 등 제거
+            const rawContent = eventContent.value;
+            const content = rawContent
+                .replace(/[\u00ad\u200b-\u200f\u2028\u2029\u202a-\u202f\ufeff]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
             const publicApiUrl = publicApiUrlInput.value.trim();
             if (!content) return;
 

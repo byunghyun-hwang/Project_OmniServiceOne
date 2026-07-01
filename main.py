@@ -1,10 +1,13 @@
 import uuid
+import re
 import io
 import datetime
 import os
 import json
 import urllib.request
 import subprocess
+import asyncio
+import edge_tts
 from fastapi import FastAPI, Depends, HTTPException, Request, BackgroundTasks
 from fastapi.responses import StreamingResponse, HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -94,39 +97,53 @@ def translate_text_with_openai(text: str, target_lang: str) -> str:
         print(f"OpenAI API Translation Error: {e}")
         return text
 
-# Helper: OpenAI TTS-1 API (using urllib)
-def generate_tts_with_openai(text: str, filepath: str):
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        print("Warning: OPENAI_API_KEY environment variable is not set. Cannot generate TTS.")
-        return
-    
-    url = "https://api.openai.com/v1/audio/speech"
-    payload = {
-        "model": "tts-1",
-        "input": text,
-        "voice": "alloy"
-    }
-    
-    data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(
-        url,
-        data=data,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
-        },
-        method="POST"
-    )
-    
+# Helper: Remove HTML and zero-width spaces for clean TTS generation
+def sanitize_text(text: str) -> str:
+    # 1. HTML 태그 제거
+    text = re.sub(r'<[^>]*>', '', text)
+    # 2. 불가시 유니코드 전체 제거
+    #    \u00ad 소프트 하이픈
+    #    \u200b ZWSP, \u200c ZWNJ, \u200d ZWJ, \u200e LRM, \u200f RLM
+    #    \u2028 LS, \u2029 PS
+    #    \u202a-\u202f 방향 제어 문자
+    #    \ufeff BOM
+    text = re.sub(r'[\u00ad\u200b-\u200f\u2028\u2029\u202a-\u202f\ufeff]', '', text)
+    # 3. 다중 공백 단일 공백으로 치환
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
+# 언어 코드 → edge-tts Neural voice 매핑
+EDGE_TTS_VOICE_MAP = {
+    "ko": "ko-KR-SunHiNeural",       # 한국어: SunHi (여성, 명확하고 자연스러움)
+    "en": "en-US-JennyNeural",        # 영어
+    "ja": "ja-JP-NanamiNeural",       # 일본어
+    "zh": "zh-CN-XiaoxiaoNeural",     # 중국어
+    "es": "es-ES-ElviraNeural",       # 스페인어
+    "fr": "fr-FR-DeniseNeural",       # 프랑스어
+    "de": "de-DE-KatjaNeural",        # 독일어
+    "vi": "vi-VN-HoaiMyNeural",       # 베트남어
+    "th": "th-TH-PremwadeeNeural",    # 태국어
+}
+
+# Helper: Generate TTS using edge-tts (Microsoft Neural TTS, 무료, API 키 불필요)
+async def generate_tts(text: str, filepath: str, lang: str):
+    base_lang = lang.split("-")[0].lower()
+    voice = EDGE_TTS_VOICE_MAP.get(base_lang, "ko-KR-SunHiNeural")
     try:
-        with urllib.request.urlopen(req, timeout=20) as response:
-            audio_data = response.read()
-            with open(filepath, "wb") as f:
-                f.write(audio_data)
-            print(f"Successfully generated TTS at {filepath}")
+        communicate = edge_tts.Communicate(text, voice, rate="-5%")
+        await communicate.save(filepath)
+        print(f"edge-tts 생성 완료: {filepath} (voice={voice})")
     except Exception as e:
-        print(f"OpenAI TTS API Error: {e}")
+        print(f"edge-tts 오류: {e}. gTTS fallback 시도.")
+        # fallback: gTTS
+        try:
+            from gtts import gTTS
+            clean_lang = base_lang
+            tts_fb = gTTS(text=text, lang=clean_lang, slow=False)
+            tts_fb.save(filepath)
+            print(f"gTTS fallback 완료: {filepath} (lang={clean_lang})")
+        except Exception as e2:
+            print(f"gTTS fallback 오류: {e2}")
 
 # GitHub push background task
 def push_to_github(filepath: str):
@@ -201,12 +218,12 @@ def translate_content(req: TranslateRequest):
 
 # GET /api/event/{uuid}?lang={lang} - Exposes translated text + high-quality TTS audio file URL
 @app.get("/api/event/{uuid}")
-def get_translated_event_with_tts(uuid: str, lang: str, request: Request, db: Session = Depends(get_db)):
+async def get_translated_event_with_tts(uuid: str, lang: str, request: Request, db: Session = Depends(get_db)):
     db_event = db.query(models.Event).filter(models.Event.uuid == uuid).first()
     if not db_event:
         raise HTTPException(status_code=404, detail="존재하지 않는 행사입니다.")
     
-    # 1. Translate content using OpenAI Chat
+    # 1. Translate content using OpenAI Chat (키 없으면 원문 반환)
     translated_text = translate_text_with_openai(db_event.content, lang)
     
     # 2. Generate and save TTS audio file (cache if exists to reduce API calls)
@@ -215,11 +232,15 @@ def get_translated_event_with_tts(uuid: str, lang: str, request: Request, db: Se
     audio_filepath = f"events/audio/{audio_filename}"
     
     if not os.path.exists(audio_filepath):
-        # Request OpenAI TTS
-        generate_tts_with_openai(translated_text, audio_filepath)
+        # sanitize 후 edge-tts로 고품질 MP3 생성
+        clean_text = sanitize_text(translated_text)
+        await generate_tts(clean_text, audio_filepath, lang)
         
-    # 3. Formulate public audio URL dynamically based on the incoming request base URL (respecting tunnel)
-    base_url = str(request.base_url)
+    # 3. Formulate public audio URL dynamically based on proxy headers (respecting tunnel)
+    headers = request.headers
+    proto = headers.get("x-forwarded-proto", "http")
+    host = headers.get("x-forwarded-host", headers.get("host", "127.0.0.1:8000"))
+    base_url = f"{proto}://{host}"
     if not base_url.endswith("/"):
         base_url += "/"
     audio_url = f"{base_url}events/audio/{audio_filename}"
