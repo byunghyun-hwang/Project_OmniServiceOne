@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>행사 안내 - Event Details</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts Outfit & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        title: ['Outfit', 'sans-serif'],
+                        body: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .glass {
+            background: rgba(22, 30, 49, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .loading-pulse {
+            animation: pulse-slow 1.5s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-[#0b0f19] text-slate-100 font-body min-h-screen flex items-center justify-center p-4 md:p-8 relative overflow-x-hidden">
+
+    <!-- Gradient Background Orbs -->
+    <div class="absolute top-0 right-0 w-[300px] h-[300px] bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-500/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+    <div class="event-card max-w-lg w-full glass rounded-3xl overflow-hidden shadow-2xl relative z-10 opacity-0 translate-y-8 transition-all duration-700 ease-out" id="cardContainer">
+        <!-- Header -->
+        <div class="bg-gradient-to-br from-emerald-500/20 to-blue-500/10 p-8 text-center border-b border-white/5 relative">
+            <span class="inline-block bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase mb-3 shadow-inner" id="eventBadge">
+                Official Event
+            </span>
+            <h1 class="font-title text-2xl md:text-3xl font-extrabold text-white tracking-tight" id="mainTitle">행사 안내</h1>
+            
+            <!-- Language Alert Badge -->
+            <div id="translateBadge" class="hidden mt-4 justify-center items-center gap-2">
+                <span class="text-xs text-slate-400 bg-white/5 px-2.5 py-1 rounded-md border border-white/10 flex items-center gap-1.5">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8h11M4 12h12M11 4v16"/></svg>
+                    Translated to <strong id="targetLanguage" class="text-emerald-400 font-medium">EN</strong>
+                </span>
+                <button onclick="showOriginal()" class="text-xs text-blue-400 hover:text-blue-300 underline font-medium transition cursor-pointer">
+                    원문 보기 (Show Original)
+                </button>
+            </div>
+        </div>
+        
+        <!-- Content Body -->
+        <div class="p-8">
+            <!-- Loading Skeleton Overlay (Shown when translating) -->
+            <div id="loadingOverlay" class="hidden space-y-4 loading-pulse my-6">
+                <div class="h-4 bg-slate-800 rounded w-3/4"></div>
+                <div class="h-4 bg-slate-800 rounded"></div>
+                <div class="h-4 bg-slate-800 rounded w-5/6"></div>
+                <div class="h-4 bg-slate-800 rounded w-2/3"></div>
+            </div>
+
+            <!-- Actual Event Content Text Box -->
+            <div id="contentBox" class="bg-slate-950/40 border border-white/5 rounded-2xl p-6 text-[1.05rem] text-slate-200 leading-relaxed whitespace-pre-wrap break-words min-h-[140px] shadow-inner transition-opacity duration-300">
+                <span id="eventContent">Our Nike store is offering special discounts of up to 50% on new arrivals from July 1st to July 7th. Don’t miss this opportunity to save on the latest Nike products.</span>
+            </div>
+            
+            <!-- Hidden original text store for restoring -->
+            <span id="originalContentStore" class="hidden">Our Nike store is offering special discounts of up to 50% on new arrivals from July 1st to July 7th. Don’t miss this opportunity to save on the latest Nike products.</span>
+
+            <!-- Premium Custom Audio Player (Initially hidden, shown when translation containing audio is loaded) -->
+            <div id="audioPlayerContainer" class="hidden mt-6 bg-slate-900/60 border border-white/5 rounded-2xl p-4 items-center gap-4 transition-all duration-300">
+                <button id="playBtn" class="w-12 h-12 flex items-center justify-center bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-full focus:outline-none transition cursor-pointer shadow-lg hover:scale-105 active:scale-95 duration-200">
+                    <!-- Play Icon -->
+                    <svg id="playIcon" class="w-5 h-5 fill-current ml-0.5 text-slate-900" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    <!-- Pause Icon (hidden by default) -->
+                    <svg id="pauseIcon" class="w-5 h-5 fill-current hidden text-slate-900" viewBox="0 0 24 24">
+                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                    </svg>
+                </button>
+                
+                <div class="flex-1 min-w-0">
+                    <div class="flex justify-between items-center text-xs text-slate-400 mb-1.5 font-medium">
+                        <span class="flex items-center gap-1">
+                            <svg class="text-emerald-400 animate-bounce" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+                            Audio Reader (OpenAI TTS)
+                        </span>
+                        <span id="audioTime" class="tabular-nums">0:00 / 0:00</span>
+                    </div>
+                    <!-- Progress Bar -->
+                    <div class="w-full bg-slate-800 hover:bg-slate-700/80 rounded-full h-1.5 cursor-pointer relative" id="progressContainer">
+                        <div id="progressBar" class="bg-emerald-400 h-1.5 rounded-full w-0 transition-all duration-75"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex flex-col items-center gap-3 border-t border-white/5 py-6 px-8 bg-slate-950/20 text-xs text-slate-400">
+            <div class="flex items-center gap-1.5 font-medium text-slate-300">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M12 6v6l4 2"/></svg>
+                <span>등록일: <strong id="formatted-date" class="text-slate-200 font-semibold"></strong></span>
+            </div>
+            <div class="font-title font-bold tracking-widest text-slate-500 uppercase text-[0.8rem] mt-1">Event Hub</div>
+        </div>
+    </div>
+
+    <script>
+        // Trigger reveal animation on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const card = document.getElementById('cardContainer');
+            card.classList.remove('opacity-0', 'translate-y-8');
+            card.classList.add('opacity-100', 'translate-y-0');
+        });
+
+        // Format Date to User Local time nicely
+        const utcDateStr = "2026-07-01 02:24:18";
+        if (utcDateStr) {
+            try {
+                const parts = utcDateStr.split(/[- :]/);
+                const utcDate = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], parts[3], parts[4], parts[5]));
+                const options = { 
+                    year: 'numeric', month: 'long', day: 'numeric', 
+                    hour: '2-digit', minute: '2-digit', hour12: false
+                };
+                document.getElementById('formatted-date').textContent = utcDate.toLocaleDateString(navigator.language || 'ko-KR', options);
+            } catch (e) {
+                document.getElementById('formatted-date').textContent = utcDateStr;
+            }
+        }
+
+        // --- Translation & TTS Integration ---
+        const eventContent = document.getElementById('eventContent');
+        const originalContentStore = document.getElementById('originalContentStore');
+        const translateBadge = document.getElementById('translateBadge');
+        const targetLanguageBadge = document.getElementById('targetLanguage');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const contentBox = document.getElementById('contentBox');
+
+        // Audio Player DOM Elements
+        const playerContainer = document.getElementById('audioPlayerContainer');
+        const playBtn = document.getElementById('playBtn');
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const audioTime = document.getElementById('audioTime');
+        const progressBar = document.getElementById('progressBar');
+        const progressContainer = document.getElementById('progressContainer');
+
+        let audio = null;
+        let isPlaying = false;
+
+        // Dynamic backend public URL injected via Jinja. Fallback to current window origin if local.
+        const baseApiUrl = "" || window.location.origin;
+
+        // Supported Language Mapping for human readable badge
+        const langMap = {
+            'en': 'English',
+            'ja': '日本語 (Japanese)',
+            'zh': '中文 (Chinese)',
+            'es': 'Español (Spanish)',
+            'fr': 'Français (French)',
+            'de': 'Deutsch (German)',
+            'vi': 'Tiếng Việt (Vietnamese)',
+            'th': 'ไทย (Thai)'
+        };
+
+        // Detect user agent browser language (e.g., 'en-US' -> 'en')
+        const browserLang = (navigator.language || navigator.userLanguage || 'ko-KR').toLowerCase();
+        const baseLangCode = browserLang.split('-')[0];
+
+        // Perform translation only if client browser is NOT set to Korean
+        if (!browserLang.startsWith('ko')) {
+            requestTranslationAndTTS();
+        }
+
+        async function requestTranslationAndTTS() {
+            const originalText = originalContentStore.textContent.trim();
+            const eventUuid = "69e47a8c-f9a3-45bd-9961-0ec96fe6c303";
+            if (!originalText || !eventUuid) return;
+
+            // Transition: Hide text and show loading skeleton
+            contentBox.classList.add('opacity-0');
+            loadingOverlay.classList.remove('hidden');
+
+            try {
+                // GET /api/event/{uuid}?lang={lang} - 실시간 번역 + TTS 오디오 생성 API 호출
+                const response = await fetch(`${baseApiUrl}/api/event/${eventUuid}?lang=${browserLang}`, {
+                    method: 'GET',
+                    headers: {
+                        'Bypass-Tunnel-Reminder': 'true' // Bypasses localtunnel warning pages
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('API server response failed');
+                }
+
+                const data = await response.json();
+                if (data.translated_text) {
+                    // Update translated text in box
+                    eventContent.textContent = data.translated_text;
+                    
+                    // Style translation badge
+                    const readableLangName = langMap[baseLangCode] || browserLang.toUpperCase();
+                    targetLanguageBadge.textContent = readableLangName;
+                    translateBadge.classList.remove('hidden');
+                    translateBadge.classList.add('flex');
+                    document.getElementById('eventBadge').textContent = 'Translated Event';
+                }
+
+                if (data.audio_url) {
+                    // Initialize and bind custom play mechanics
+                    setupAudioPlayer(data.audio_url);
+                }
+            } catch (err) {
+                console.error('Translation or TTS call failed. Fallback to original text.', err);
+            } finally {
+                // Return visibility
+                loadingOverlay.classList.add('hidden');
+                contentBox.classList.remove('opacity-0');
+            }
+        }
+
+        function setupAudioPlayer(audioUrl) {
+            audio = new Audio(audioUrl);
+            
+            // Show player card
+            playerContainer.classList.remove('hidden');
+            playerContainer.classList.add('flex');
+
+            playBtn.onclick = () => {
+                if (isPlaying) {
+                    audio.pause();
+                } else {
+                    audio.play();
+                }
+            };
+
+            audio.addEventListener('play', () => {
+                isPlaying = true;
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
+            });
+
+            audio.addEventListener('pause', () => {
+                isPlaying = false;
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+            });
+
+            audio.addEventListener('timeupdate', () => {
+                const cur = audio.currentTime;
+                const dur = audio.duration || 0;
+                
+                // Update Progress percentage
+                const percent = dur > 0 ? (cur / dur) * 100 : 0;
+                progressBar.style.width = `${percent}%`;
+                
+                // Format display
+                audioTime.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+            });
+
+            audio.addEventListener('ended', () => {
+                isPlaying = false;
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+                progressBar.style.width = '0%';
+            });
+
+            // Seek functionality by clicking on progress bar
+            progressContainer.onclick = (e) => {
+                const width = progressContainer.clientWidth;
+                const clickX = e.offsetX;
+                const duration = audio.duration;
+                if (duration) {
+                    audio.currentTime = (clickX / width) * duration;
+                }
+            };
+        }
+
+        function formatTime(secs) {
+            const m = Math.floor(secs / 60);
+            const s = Math.floor(secs % 60);
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
+        function showOriginal() {
+            // Stop and hide audio play mechanics
+            if (audio) {
+                audio.pause();
+                audio.currentTime = 0;
+            }
+            playerContainer.classList.add('hidden');
+            playerContainer.classList.remove('flex');
+
+            // Restore text elements
+            eventContent.textContent = originalContentStore.textContent;
+            translateBadge.classList.add('hidden');
+            translateBadge.classList.remove('flex');
+            document.getElementById('eventBadge').textContent = 'Official Event';
+        }
+    </script>
+</body>
+</html>
